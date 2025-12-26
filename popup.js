@@ -1,31 +1,25 @@
-chrome.bookmarks.getSubTree("1").then(async (bookmarksBar) => {
-  await Array.fromAsync(bookmarksBar, async ({ children: folders = [] }) => {
-    await Array.fromAsync(folders, async ({ children: pages = [] }) => {
-      const sorted = new Set(
-        pages.toSorted(
-          (a, b) =>
-            (a.url &&
-              b.url &&
-              URL.canParse(a.url) &&
-              URL.canParse(b.url) &&
-              new URL(a.url).origin.localeCompare(new URL(b.url).origin)) ||
-            a.title.localeCompare(b.title, undefined, { numeric: true }),
-        ),
-      );
+for (const { children: fs = [] } of await chrome.bookmarks.getSubTree("1")) {
+  for (const { children: bs = [] } of fs) {
+    const ss = new Set(
+      bs.toSorted(
+        (a, b) =>
+          new URL(a.url).origin.localeCompare(new URL(b.url).origin) ||
+          a.title.localeCompare(b.title, undefined, { numeric: true }),
+      ),
+    );
 
-      const removed = new Set(
-        Map.groupBy(sorted, (x) => x.title.replaceAll(/\d+/g, ""))
-          .values()
-          .flatMap((xs) => xs.slice(0, -1)),
-      );
+    const rs = new Set(
+      Map.groupBy(ss, (x) => x.title.replaceAll(/\d+/g, ""))
+        .values()
+        .flatMap((xs) => xs.slice(0, -1)),
+    );
 
-      await Array.fromAsync(sorted.difference(removed), async (x) =>
-        chrome.bookmarks.move(x.id, { parentId: x.parentId }),
-      );
+    for (const x of ss.difference(rs)) {
+      await chrome.bookmarks.move(x.id, { parentId: x.parentId });
+    }
 
-      await Array.fromAsync(removed, async (x) =>
-        chrome.bookmarks.remove(x.id),
-      );
-    });
-  });
-});
+    for (const x of rs) {
+      chrome.bookmarks.remove(x.id);
+    }
+  }
+}
